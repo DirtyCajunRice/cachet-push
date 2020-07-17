@@ -1,0 +1,29 @@
+stages:
+  - build
+  - release
+
+amd64:
+  image: docker:stable
+  stage: build
+  services:
+    - docker:dind
+  except:
+    - tags
+  tags:
+    - amd64
+  only:
+    changes:
+      - Dockerfile
+      - .gitlab-ci.yml
+  before_script:
+    - mkdir $HOME/.docker
+    - echo '{"experimental":"enabled"}' > $HOME/.docker/config.json
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then
+          export TAG=$(grep -i version Dockerfile | cut -d=  -f2 | tr -d \");
+      else
+          export TAG="develop";
+      fi
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE":"$TAG" .
+    - docker push "$CI_REGISTRY_IMAGE":"$TAG"
